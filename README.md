@@ -37,17 +37,27 @@ cp bin/kubectl-aws_nodes /usr/local/bin/
 ## Usage
 
 ```bash
-kubectl nodes
+kubectl aws-nodes
 ```
 
 For detailed resource information:
 ```bash
-kubectl nodes -o wide
+kubectl aws-nodes -o wide
 ```
 
 For resource-focused view:
 ```bash
-kubectl nodes -o top
+kubectl aws-nodes -o top
+```
+
+Open AWS console for a specific node:
+```bash
+kubectl aws-nodes --open ip-10-0-1-100.us-west-2.compute.internal
+```
+
+Open Auto Scaling Group console for a specific node:
+```bash
+kubectl aws-nodes --open-asg ip-10-0-1-100.us-west-2.compute.internal
 ```
 
 ## Output
@@ -59,15 +69,11 @@ The plugin outputs a table with the following columns:
 - **VERSION**: Kubelet version
 - **INSTANCE-ID**: AWS EC2 instance ID
 - **INSTANCE-TYPE**: AWS EC2 instance type
-- **NODEGROUP**: EKS node group name (from eks:nodegroup-name tag)
+- **TAINTS**: Node taints
 
-With `-o wide`, additional resource columns are shown:
-- **CPU-CAP**: CPU capacity (allocatable)
-- **CPU-REQ**: CPU requested by pods
-- **CPU-FREE%**: Percentage of CPU not requested
-- **MEM-CAP**: Memory capacity (allocatable)
-- **MEM-REQ**: Memory requested by pods
-- **MEM-FREE%**: Percentage of memory not requested
+With `-o wide`, additional columns are shown:
+- **ASG**: Auto Scaling Group name (from aws:autoscaling:groupName tag)
+- **ASG-CAPACITY**: ASG capacity in min/max/desired format
 
 With `-o top`, only resource-focused columns are shown:
 - **NAME**: Node name
@@ -82,9 +88,9 @@ With `-o top`, only resource-focused columns are shown:
 ## Example Output
 
 ```
-NAME                                          STATUS   AGE   VERSION   INSTANCE-ID         INSTANCE-TYPE  NODEGROUP
-ip-10-0-1-100.us-west-2.compute.internal     Ready    5d    v1.28.0   i-0123456789abcdef0  m5.large      worker-nodes
-ip-10-0-2-200.us-west-2.compute.internal     Ready    5d    v1.28.0   i-0987654321fedcba0  m5.xlarge     worker-nodes
+NAME                                          STATUS   AGE   VERSION   INSTANCE-ID         INSTANCE-TYPE  TAINTS
+ip-10-0-1-100.us-west-2.compute.internal     Ready    5d    v1.28.0   i-0123456789abcdef0  m5.large      
+ip-10-0-2-200.us-west-2.compute.internal     Ready    5d    v1.28.0   i-0987654321fedcba0  m5.xlarge     
 ```
 
 ## How it works
@@ -92,6 +98,9 @@ ip-10-0-2-200.us-west-2.compute.internal     Ready    5d    v1.28.0   i-09876543
 The plugin:
 1. Connects to your Kubernetes cluster using your current kubectl context
 2. Retrieves node information via the Kubernetes API
-3. Extracts EC2 instance IDs from node `spec.providerID` fields
-4. Queries AWS EC2 API to get instance details
-5. Combines and displays the information in a table format
+3. Gets instance type from node labels (`node.kubernetes.io/instance-type`)
+4. Extracts EC2 instance IDs from node `spec.providerID` fields
+5. For wide output: Queries AWS EC2 and Auto Scaling APIs to get ASG details
+6. Combines and displays the information in a table format
+
+**AWS credentials are only required for wide output** (to show ASG information). Default and top outputs work with just Kubernetes access.
